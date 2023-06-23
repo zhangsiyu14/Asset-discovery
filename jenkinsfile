@@ -1,0 +1,84 @@
+pipeline {
+    agent any
+
+    parameters {
+        string(name: 'REPO_URL', defaultValue: 'https://github.com/zhangsiyu14/Asset-discovery.git', description: 'GitHub repository URL')
+        string(name: 'IP_ADDRESS', defaultValue: '192.168.0.100', description: 'IP address for the network configuration')
+    }
+
+    stages {
+        stage('Install OS') {
+            steps {
+                script {
+                    try {
+                        sh 'apt-get install -y ubuntu-server'
+                    } catch (Exception e) {
+                        echo "Failed to install OS: ${e}"
+                    }
+                }
+            }
+        }
+
+        stage('Configure Network') {
+            steps {
+                script {
+                    try {
+                        sh "ifconfig eth0 ${params.IP_ADDRESS} netmask 255.255.255.0"
+                    } catch (Exception e) {
+                        echo "Failed to configure network: ${e}"
+                    }
+                }
+            }
+        }
+
+        stage('Install Software and Configure VM') {
+            steps {
+                parallel(
+                    installSoftware: {
+                        script {
+                            try {
+                                sh 'apt-get install -y openssh-server git'
+                            } catch (Exception e) {
+                                echo "Failed to install software: ${e}"
+                            }
+                        }
+                    },
+                    configureVM: {
+                        script {
+                            try {
+                                sh 'hostnamectl set-hostname my-vm'
+                                sh 'timedatectl set-timezone Asia/Shanghai'
+                            } catch (Exception e) {
+                                echo "Failed to configure VM: ${e}"
+                            }
+                        }
+                    }
+                )
+            }
+        }
+
+        stage('Clone Repository') {
+            steps {
+                script {
+                    try {
+                        sh "git clone ${params.REPO_URL}"
+                    } catch (Exception e) {
+                        echo "Failed to clone repository: ${e}"
+                    }
+                }
+            }
+        }
+
+        stage('Deploy Application') {
+            steps {
+                script {
+                    try {
+                        sh 'cd your-repo && ./deploy.sh'
+                    } catch (Exception e) {
+                        echo "Failed to deploy application: ${e}"
+                    }
+                }
+            }
+        }
+    }
+}
